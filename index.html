@@ -1,0 +1,529 @@
+<!DOCTYPE html> 
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vietnamese Learning</title>
+<style>
+:root {
+  --mint: #9be7c4;
+  --mint-dark: #3ab795;
+  --gray-light: #f1f5f9;
+  --gray-dark: #374151;
+}
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  margin: 0;
+  background: var(--gray-light);
+  color: var(--gray-dark);
+}
+header {
+  background: var(--mint-dark);
+  color: white;
+  text-align: center;
+  padding: 20px;
+  font-weight: 700;
+  font-size: 2rem;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+.sub {
+  font-size: 1rem;
+  color: #555;
+  text-align: right;
+  margin: 8px 14px;
+}
+.nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px;
+}
+.nav button {
+  padding: 18px 28px;
+  border: none;
+  border-radius: 16px;
+  background: white;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+}
+.nav button.active { background: var(--mint-dark); color: white; transform: scale(1.05); }
+.container { max-width: 900px; margin: 0 auto; padding: 10px; }
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0 20px;
+}
+.filter button {
+  background: var(--mint);
+  border: none;
+  padding: 16px 28px;
+  border-radius: 14px;
+  font-size: 1.4rem;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .2s;
+}
+.filter button:hover { transform: scale(1.05); }
+.card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  padding: 26px;
+  margin-bottom: 22px;
+}
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.word {
+  font-weight: 700;
+  font-size: 2.2rem;
+}
+.number {
+  font-weight: 600;
+  color: #3ab795;
+  margin-right: 8px;
+}
+.actions { display: flex; gap: 16px; }
+.btn {
+  border: none;
+  cursor: pointer;
+  font-size: 2.4rem;
+  border-radius: 50%;
+  padding: 14px;
+  background: #f0fdfa;
+  transition: transform .2s;
+}
+.listen { color: var(--mint-dark); }
+.mem { background: #fff; color: #aaa; }
+.mem.active { color: #f59e0b; transform: scale(1.3); }
+.option {
+  background: #d1fae5;
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 10px 0;
+  width: 100%;
+  font-size: 1.6rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all .2s;
+}
+.option:hover { background: #a7f3d0; }
+.translation, .example {
+  font-size: 1.6rem;
+  color: #444;
+  margin-top: 8px;
+}
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: white;
+  padding: 16px 26px;
+  border-radius: 30px;
+  font-size: 1.3rem;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.toast.show { opacity: 1; }
+.del {
+  border: none;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+@media(max-width:768px){
+  body{font-size:2.6rem;}
+  .word{font-size:3.4rem;}
+  .option{font-size:2.4rem;padding:26px;}
+  .btn{font-size:3rem;padding:26px;}
+  .card{padding:40px;}
+  .nav button,.filter button{font-size:2.2rem;padding:24px 36px;}
+}
+</style>
+</head>
+<body>
+<header>Vietnamese Learning</header>
+<div class="sub">Version 3.0 · 개발자: 이후석 (Andrew Lee)</div>
+<div class="nav">
+  <button onclick="showTab('list')" class="active">📚 Wordlist</button>
+  <button onclick="showTab('quiz')">🧠 Quiz</button>
+  <button onclick="showTab('wrong')">🔁 Wrong</button>
+  <button onclick="showTab('memo')">😄 Memorized</button>
+  <button onclick="showTab('story')">📖 Story Generator</button>
+  <button onclick="showTab('saved')">💾 Saved Story</button>
+</div>
+<div class="container" id="content">
+  <div id="loading">⏳ Loading...</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+let data = {};
+let current = 'list';
+let wrongList = JSON.parse(localStorage.getItem('wrongList') || '[]');
+let memoList = JSON.parse(localStorage.getItem('memoList') || '[]');
+function escapeStr(str){ return str ? str.replace(/'/g,"\\'").replace(/\"/g,"&quot;") : ''; }
+google.script.run.withSuccessHandler(initApp).getAllData();
+function initApp(res){ data = res; renderList(); }
+function showTab(tab){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  current = tab;
+  if(tab==='list') renderList();
+  if(tab==='quiz') renderQuiz();
+  if(tab==='wrong') renderWrong();
+  if(tab==='memo') renderMemo();
+  if(tab==='story') renderStory();
+  if(tab==='saved') renderSavedStory();
+}
+// ========== WORDLIST ==========
+function renderList(){
+  let c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filter">
+      <button onclick="filterCategory('VN_Nouns')">명사</button>
+      <button onclick="filterCategory('VN_Verbs')">동사</button>
+      <button onclick="filterCategory('VN_Adjectives')">형용사</button>
+      <button onclick="filterCategory('VN_Sentences')">문장</button>
+    </div>`;
+  showWords(Object.keys(data));
+}
+
+function filterCategory(cat){
+  let c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filter">
+      <button onclick="renderList()">전체보기</button>
+      <button onclick="filterCategory('VN_Nouns')">명사</button>
+      <button onclick="filterCategory('VN_Verbs')">동사</button>
+      <button onclick="filterCategory('VN_Adjectives')">형용사</button>
+      <button onclick="filterCategory('VN_Sentences')">문장</button>
+    </div>`;
+  showWords([cat]);
+}
+
+function cleanSentence(text){
+  return text.replace(/^Sentence[:：]?\s*/i,'').replace(/^문장[:：]?\s*/,'');
+}
+
+function showWords(cats){
+  const c = document.getElementById('content');
+  let count = 1;
+  cats.forEach(cat=>{
+    data[cat].forEach(w=>{
+      const vi = cleanSentence(w.Vietnamese);
+      const viSafe = escapeStr(vi);
+      const isMemo = memoList.find(m=>m.Vietnamese===w.Vietnamese);
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="top">
+          <div class="word"><span class="number">${count++}.</span>${vi}</div>
+          <div class="actions">
+            <button class="btn listen" onclick="play('${viSafe}')">🔊</button>
+            <button class="btn mem ${isMemo?'active':''}" onclick="toggleMemo(this,'${cat}',${w.No},'${viSafe}')">${isMemo?'😄':'😐'}</button>
+          </div>
+        </div>
+        <div class="translation">${w.English} / ${w.Korean}</div>
+        ${w.Example ? `<div class="example">${w.Example}</div>` : ''}`;
+      c.appendChild(card);
+    });
+  });
+}
+
+// ========== QUIZ ==========
+function renderQuiz(){
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filter">
+      <button onclick="loadQuiz()">전체</button>
+      <button onclick="loadQuiz('VN_Nouns')">명사</button>
+      <button onclick="loadQuiz('VN_Verbs')">동사</button>
+      <button onclick="loadQuiz('VN_Adjectives')">형용사</button>
+      <button onclick="loadQuiz('VN_Sentences')">문장</button>
+    </div>
+    <div id="quizArea"></div>`;
+  loadQuiz();
+}
+
+function loadQuiz(cat){
+  const c = document.getElementById('quizArea');
+  const cats = ['VN_Nouns','VN_Verbs','VN_Adjectives','VN_Sentences'];
+  let pool = cat ? data[cat] : cats.flatMap(k=>data[k]);
+  c.innerHTML = '';
+  let count = 1;
+  let qs = shuffle(pool).slice(0,10);
+  qs.forEach((q,i)=>{
+    const vi = cleanSentence(q.Vietnamese);
+    const viSafe = escapeStr(vi);
+    const isMemo = memoList.find(m=>m.Vietnamese===q.Vietnamese);
+    const opts = shuffle(pool.filter(x=>x!==q).slice(0,3).concat(q));
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="top">
+        <div class="word"><span class="number">${count++}.</span>${vi}</div>
+        <div class="actions">
+          <button class="btn listen" onclick="play('${viSafe}')">🔊</button>
+          <button class="btn mem ${isMemo?'active':''}" onclick="toggleMemo(this,'',0,'${viSafe}')">${isMemo?'😄':'😐'}</button>
+        </div>
+      </div>
+      ${opts.map((o,j)=>`
+        <button class="option" onclick="checkAns(this,'${viSafe}','${(o.English||"").replace(/'/g,"\\'")}','${(q.English||"").replace(/'/g,"\\'")}','${(q.Korean||"").replace(/'/g,"\\'")}',${i})">
+          ${String.fromCharCode(65+j)}. ${o.English} / ${o.Korean}
+        </button>`).join('')}`;
+    c.appendChild(card);
+  });
+}
+
+function checkAns(btn,vi,sel,en,kr){
+  const card = btn.closest('.card');
+  const correct = en === sel;
+  const allBtns = card.querySelectorAll('.option');
+  allBtns.forEach(b=>{
+    if(b.textContent.includes(en)){
+      b.style.background='#bbf7d0';
+      b.style.fontWeight='700';
+    }else if(b===btn && !correct){
+      b.style.background='#fecaca';
+    }else b.style.opacity=0.6;
+    b.disabled=true;
+  });
+  if(!correct){
+    wrongList.push({Vietnamese:vi,English:en,Korean:kr});
+    localStorage.setItem('wrongList',JSON.stringify(wrongList));
+  }
+}
+
+// ========== WRONG / MEMO ==========
+function renderWrong(){
+  const c=document.getElementById('content');
+  c.innerHTML='';
+  wrongList.forEach((w,i)=>{
+    const vi=cleanSentence(w.Vietnamese);
+    const viSafe=escapeStr(vi);
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`
+      <div class="top">
+        <div class="word"><span class="number">${i+1}.</span>${vi}</div>
+        <div class="actions">
+          <button class="btn listen" onclick="play('${viSafe}')">🔊</button>
+          <button class="del" onclick="delWrong(${i})">🗑️</button>
+        </div>
+      </div>
+      <div class="translation">${w.English} / ${w.Korean}</div>`;
+    c.appendChild(card);
+  });
+}
+function delWrong(i){
+  wrongList.splice(i,1);
+  localStorage.setItem('wrongList',JSON.stringify(wrongList));
+  renderWrong();
+}
+
+function renderMemo(){
+  const c=document.getElementById('content');
+  c.innerHTML='';
+  memoList.forEach((w,i)=>{
+    const vi=cleanSentence(w.Vietnamese);
+    const viSafe=escapeStr(vi);
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`
+      <div class="top">
+        <div class="word"><span class="number">${i+1}.</span>${vi}</div>
+        <div class="actions">
+          <button class="btn listen" onclick="play('${viSafe}')">🔊</button>
+          <button class="btn mem active" onclick="toggleMemo(this,'',0,'${viSafe}')">😄</button>
+        </div>
+      </div>
+      <div class="translation">${w.English} / ${w.Korean}</div>
+      ${w.Example?`<div class="example">${w.Example}</div>`:''}`;
+    c.appendChild(card);
+  });
+}
+
+// ========== UTILITIES ==========
+function toggleMemo(el,cat,no,vi){
+  let word;
+  if(!vi){word=data[cat].find(w=>w.No===no);}
+  else{
+    let all=[...data['VN_Nouns'],...data['VN_Verbs'],...data['VN_Adjectives'],...data['VN_Sentences']];
+    word=all.find(w=>cleanSentence(w.Vietnamese)===vi);
+  }
+  let idx=memoList.findIndex(m=>cleanSentence(m.Vietnamese)===vi);
+  if(idx<0){
+    memoList.push(word);
+    localStorage.setItem('memoList',JSON.stringify(memoList));
+    el.classList.add('active');el.innerText='😄';
+    showToast('✅ 외운 단어로 이동했습니다.');
+  }else{
+    memoList.splice(idx,1);
+    localStorage.setItem('memoList',JSON.stringify(memoList));
+    el.classList.remove('active');el.innerText='😐';
+    showToast('↩️ 외운 단어에서 제외되었습니다.');
+  }
+  if(current==='memo') renderMemo();
+}
+function showToast(msg){
+  let t=document.getElementById('toast');
+  t.innerText=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+function shuffle(a){return a.sort(()=>Math.random()-0.5);}
+// ========== VIETNAMESE TTS ==========
+function play(text){
+  if(!text)return;
+  try {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=vi&client=tw-ob`;
+    const a = new Audio(url);
+    a.play().catch(()=>showToast("🔈 iPhone에서는 음성 허용을 켜주세요."));
+  } catch(e){
+    showToast("🎧 음성 재생 중 오류가 발생했습니다.");
+  }
+}
+
+
+// ✅ iPhone Safari용 오디오 권한 요청 + 팝업 안내
+window.addEventListener('load',()=>{
+  let firstTap=false;
+  document.body.addEventListener('click',()=>{
+    if(!firstTap){
+      firstTap=true;
+      alert("🔈 Safari에서 음성이 차단될 수 있습니다.\n'웹사이트 설정 > 오디오 허용'을 켜주세요.");
+      const silent=new Audio();
+      silent.play().catch(()=>{});
+    }
+  },{once:true});
+});
+
+// ========== ADVANCED SPEECH (Laptop Pronunciation) ==========
+let voices = [];
+speechSynthesis.onvoiceschanged = () => { voices = speechSynthesis.getVoices(); };
+function getBestVoice(){
+  if (/Mobi|Android/i.test(navigator.userAgent)) return null;
+  const v = speechSynthesis.getVoices();
+  return v.find(v=>v.name.includes("Google US English"))
+      || v.find(v=>v.name.includes("Microsoft Christopher"))
+      || v.find(v=>v.name.includes("Microsoft Aria"))
+      || v[0];
+}
+// ✅ Google Translate TTS 방식 (Wordlist/Quiz 동일)
+function speakText(text){
+  if(!text)return;
+  try {
+    speechSynthesis.cancel(); // 혹시 기존 재생 중지
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=vi&client=tw-ob`;
+    const a = new Audio(url);
+    a.play().catch(()=>showToast("🔈 iPhone에서는 음성 허용을 켜주세요."));
+  } catch(e){
+    showToast("🎧 음성 재생 중 오류가 발생했습니다.");
+  }
+}
+
+
+// ========== STORY GENERATOR (Gemini) ==========
+let currentStory=''; 
+let savedStories=JSON.parse(localStorage.getItem('savedStories')||'[]');
+
+function renderStory(){
+  const c=document.getElementById('content');
+  c.innerHTML=`
+  <div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px;">
+    <button onclick="newStory()" class="option">🪄 Generate Story</button>
+    <button onclick="toggleMeaning()" class="option">💬 Show Meaning</button>
+    <button onclick="saveStory()" class="option">💾 Save Story</button>
+    <button onclick="readStory()" class="option">📢 Read Aloud</button>
+  </div>
+  <div class="card" id="storyBox">
+    <div id="storyText" style="font-size:1.6rem;line-height:1.8;">Click ‘Generate Story’ to begin.</div>
+    <div id="storyMeaning" style="display:none;margin-top:12px;color:#444;"></div>
+  </div>
+  <div class="card" id="wordBox">
+    <div><strong>Words used in story:</strong></div>
+    <div id="wordList" style="margin-top:10px;"></div>
+  </div>`;
+}
+
+function newStory(){
+  document.getElementById('storyText').innerText="⏳ Generating story with Gemini...";
+  document.getElementById('storyMeaning').style.display='none';
+  google.script.run.withSuccessHandler(story=>{
+    currentStory=story;
+    document.getElementById('storyText').innerText=story.vi;
+    document.getElementById('storyMeaning').innerText=`${story.en}\n${story.ko}`;
+    renderWordList(story.words.join(' '));
+  }).generateStoryFromGemini();
+}
+
+function toggleMeaning(){
+  const m=document.getElementById('storyMeaning');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+
+function readStory(){ 
+  if(currentStory&&currentStory.vi) speakText(currentStory.vi); 
+}
+
+function saveStory(){
+  if(!currentStory.vi)return showToast('❌ No story to save.');
+  if(!savedStories.find(s=>s.vi===currentStory.vi)){
+    savedStories.push({...currentStory,date:new Date().toLocaleString()});
+    localStorage.setItem('savedStories',JSON.stringify(savedStories));
+    showToast('💾 Story saved!');
+  }else showToast('⚠️ Already saved.');
+}
+
+function renderSavedStory(){
+  const c=document.getElementById('content');
+  if(!savedStories.length) return c.innerHTML='<div class="card">No saved stories yet.</div>';
+  c.innerHTML=savedStories.map((s,i)=>`
+    <div class="card">
+      <div class="top"><div class="word"><span class="number">${i+1}.</span>${s.vi}</div></div>
+      <div class="translation">${s.en}<br>${s.ko}</div>
+      <div style="font-size:1.2rem;color:#777;margin-top:6px;">${s.date}</div>
+    </div>`).join('');
+}
+
+function renderWordList(sentence){
+  const words=sentence.split(/\s+/);
+  const allWords = [...data['VN_Nouns'],...data['VN_Verbs'],...data['VN_Adjectives'],...data['VN_Sentences']];
+const list = words.map(w=>{
+  const found = allWords.find(x=>x.Vietnamese===w);
+  const meaning = found ? `${found.English} / ${found.Korean}` : '';
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <strong>${w}</strong>
+      <span style="color:#555;">${meaning}</span>
+      <button class="btn listen" style="font-size:1.6rem;" onclick="play('${w}')">🔊</button>
+      <button class="btn mem" style="font-size:1.6rem;" onclick="markWord(this)">⭐</button>
+    </div>`;
+}).join('');
+
+  document.getElementById('wordList').innerHTML=list;
+}
+
+function markWord(el){ 
+  el.classList.toggle('active'); 
+  el.innerText=el.classList.contains('active')?'🌟':'⭐'; 
+}
+</script>
+</body>
+</html>
