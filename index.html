@@ -179,8 +179,20 @@ let current = 'list';
 let wrongList = JSON.parse(localStorage.getItem('wrongList') || '[]');
 let memoList = JSON.parse(localStorage.getItem('memoList') || '[]');
 function escapeStr(str){ return str ? str.replace(/'/g,"\\'").replace(/\"/g,"&quot;") : ''; }
-google.script.run.withSuccessHandler(initApp).getAllData();
-function initApp(res){ data = res; renderList(); }
+// ✅ 웹 배포용: Google Apps Script 웹앱에서 데이터 불러오기
+const scriptUrl = "https://script.google.com/macros/s/AKfycbxLVzuebJchlUzE_cmHIrFUX_bNgKUdf7cGjh63P_JjHOul0nkT3P_vHYXOWY8upIsv/exec";
+
+fetch(scriptUrl)
+  .then(res => res.json())
+  .then(res => {
+    data = res;
+    renderList();
+  })
+  .catch(err => {
+    console.error("데이터 불러오기 오류:", err);
+    document.getElementById('content').innerHTML = "<div class='card'>❌ 데이터 불러오기 실패</div>";
+  });
+
 function showTab(tab){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active');
