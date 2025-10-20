@@ -180,7 +180,7 @@ let wrongList = JSON.parse(localStorage.getItem('wrongList') || '[]');
 let memoList = JSON.parse(localStorage.getItem('memoList') || '[]');
 function escapeStr(str){ return str ? str.replace(/'/g,"\\'").replace(/\"/g,"&quot;") : ''; }
 // ✅ 웹 배포용: Google Apps Script 웹앱에서 데이터 불러오기
-const scriptUrl = "https://script.google.com/macros/s/AKfycbxLVzuebJchlUzE_cmHIrFUX_bNgKUdf7cGjh63P_JjHOul0nkT3P_vHYXOWY8upIsv/exec";
+const scriptUrl = "https://script.google.com/macros/s/AKfycby49_F4fpxDYah-_1SzRHhY2Hy_feNawmkh5b1XOpH1nCsGTniFvijc8FRaI8OEu31-/exec";
 
 fetch(scriptUrl)
   .then(res => res.json())
